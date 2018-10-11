@@ -26,6 +26,7 @@ parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 opt = parser.parse_args()
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
 use_cuda = torch.cuda.is_available()
 
 best_Test_acc = 0  # best PrivateTest accuracy
@@ -55,9 +56,9 @@ transform_test = transforms.Compose([
 ])
 
 trainset = CK(split = 'Training', fold = opt.fold, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=opt.bs, shuffle=True, num_workers=1)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=opt.bs, shuffle=True, num_workers=0) #在windows上设置num_workers=0
 testset = CK(split = 'Testing', fold = opt.fold, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=5, shuffle=False, num_workers=1)
+testloader = torch.utils.data.DataLoader(testset, batch_size=5, shuffle=False, num_workers=0)
 
 # Model
 if opt.model == 'VGG19':
@@ -78,8 +79,9 @@ if opt.resume:
 else:
     print('==> Building model..')
 
-if use_cuda:
-    net.cuda()
+net.to(device)
+#if use_cuda:
+#    net.cuda()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=opt.lr, momentum=0.9, weight_decay=5e-4)
@@ -104,8 +106,10 @@ def train(epoch):
 
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
-        if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
+        inputs = inputs.to(device)
+        targets = targets.to(device)
+#        if use_cuda:
+#            inputs, targets = inputs.cuda(), targets.cuda()
         optimizer.zero_grad()
         inputs, targets = Variable(inputs), Variable(targets)
         outputs = net(inputs)
@@ -135,10 +139,12 @@ def test(epoch):
     for batch_idx, (inputs, targets) in enumerate(testloader):
         bs, ncrops, c, h, w = np.shape(inputs)
         inputs = inputs.view(-1, c, h, w)
-
-        if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
-        inputs, targets = Variable(inputs, volatile=True), Variable(targets)
+        
+        inputs = inputs.to(device)
+        targets = targets.to(device)
+#        if use_cuda:
+#            inputs, targets = inputs.cuda(), targets.cuda()
+        inputs, targets = Variable(inputs), Variable(targets)
         outputs = net(inputs)
         outputs_avg = outputs.view(bs, ncrops, -1).mean(1)  # avg over crops
 

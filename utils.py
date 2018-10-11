@@ -13,13 +13,19 @@ import torch.nn as nn
 import torch.nn.init as init
 from torch.autograd import Function
 
-_, term_width = os.popen('stty size', 'r').read().split()
-term_width = int(term_width)
+#获取控制台行、列数
+if sys.platform == 'win32':
+	term_width = 80
+else:
+	print('###', os.popen('stty size', 'r').read())
+	_, term_width = os.popen('stty size', 'r').read().split()
+	term_width = int(term_width)
 
 TOTAL_BAR_LENGTH = 30.
 last_time = time.time()
 begin_time = last_time
 
+#[==>........ 19/225 ...........] | Loss: 1.961 | Acc: 22.000% (537/2432)  
 def progress_bar(current, total, msg=None):
     global last_time, begin_time
     if current == 0:

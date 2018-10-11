@@ -25,6 +25,7 @@ parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 opt = parser.parse_args()
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
 use_cuda = torch.cuda.is_available()
 best_PublicTest_acc = 0  # best PublicTest accuracy
 best_PublicTest_acc_epoch = 0
@@ -82,8 +83,10 @@ if opt.resume:
 else:
     print('==> Building model..')
 
-if use_cuda:
-    net.cuda()
+net = net.to(device)
+#if use_cuda:
+    #net.cuda()
+    
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=opt.lr, momentum=0.9, weight_decay=5e-4)
@@ -107,8 +110,10 @@ def train(epoch):
     print('learning_rate: %s' % str(current_lr))
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
-        if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
+        inputs = inputs.to(device)
+        targets = targets.to(device)
+        #if use_cuda:
+         #   inputs, targets = inputs.cuda(), targets.cuda()
         optimizer.zero_grad()
         inputs, targets = Variable(inputs), Variable(targets)
         outputs = net(inputs)
@@ -137,13 +142,17 @@ def PublicTest(epoch):
     for batch_idx, (inputs, targets) in enumerate(PublicTestloader):
         bs, ncrops, c, h, w = np.shape(inputs)
         inputs = inputs.view(-1, c, h, w)
-        if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
-        inputs, targets = Variable(inputs, volatile=True), Variable(targets)
+        inputs = inputs.to(device)
+        targets = targets.to(device)
+#        if use_cuda:
+#            inputs, targets = inputs.cuda(), targets.cuda()
+#        inputs, targets = Variable(inputs, volatile=True), Variable(targets)
+        inputs, targets = Variable(inputs), Variable(targets)
         outputs = net(inputs)
         outputs_avg = outputs.view(bs, ncrops, -1).mean(1)  # avg over crops
         loss = criterion(outputs_avg, targets)
-        PublicTest_loss += loss.data[0]
+#        PublicTest_loss += loss.data[0]
+        PublicTest_loss += loss.data.item()     
         _, predicted = torch.max(outputs_avg.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
@@ -178,8 +187,10 @@ def PrivateTest(epoch):
     for batch_idx, (inputs, targets) in enumerate(PrivateTestloader):
         bs, ncrops, c, h, w = np.shape(inputs)
         inputs = inputs.view(-1, c, h, w)
-        if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
+        inputs = inputs.to(device)
+        targets = targets.to(device)
+#        if use_cuda:
+#            inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs, volatile=True), Variable(targets)
         outputs = net(inputs)
         outputs_avg = outputs.view(bs, ncrops, -1).mean(1)  # avg over crops
