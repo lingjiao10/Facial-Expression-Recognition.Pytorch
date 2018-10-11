@@ -38,22 +38,36 @@ inputs = transform_test(img)
 
 class_names = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 
+#附近报错：AttributeError: module 'torch._C' has no attribute '_cuda_getDevice'
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+a = torch.cuda.is_available()
+print(a)
+print(device, "is running.")
+
 net = VGG('VGG19')
-checkpoint = torch.load(os.path.join('FER2013_VGG19', 'PrivateTest_model.t7'))
+map_location = 'cpu'
+#loaded to GPU by defalut
+#checkpoint = torch.load(os.path.join('FER2013_VGG19', 'PrivateTest_model.t7'))
+#change to:
+checkpoint = torch.load(os.path.join('FER2013_VGG19', 'PrivateTest_model.t7'), map_location=device)
 net.load_state_dict(checkpoint['net'])
-net.cuda()
+#net.cuda()
+net.to(device)
 net.eval()
 
 ncrops, c, h, w = np.shape(inputs)
 
 inputs = inputs.view(-1, c, h, w)
-inputs = inputs.cuda()
-inputs = Variable(inputs, volatile=True)
+#inputs = inputs.cuda()
+inputs = inputs.to(device)
+#inputs = Variable(inputs, volatile=True)
+inputs = Variable(inputs)
 outputs = net(inputs)
 
 outputs_avg = outputs.view(ncrops, -1).mean(0)  # avg over crops
 
-score = F.softmax(outputs_avg)
+score = F.softmax(outputs_avg, dim=0)
 _, predicted = torch.max(outputs_avg.data, 0)
 
 plt.rcParams['figure.figsize'] = (13.5,5.5)
@@ -87,7 +101,7 @@ axes.set_yticks([])
 plt.tight_layout()
 # show emojis
 
-#plt.show()
+plt.show()
 plt.savefig(os.path.join('images/results/l.png'))
 plt.close()
 
